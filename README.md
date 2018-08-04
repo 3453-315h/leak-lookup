@@ -92,6 +92,6 @@ Which file would you like to download?
 2) 000webhost.com.txt.gz (315.25 KB)
 a) All
 q) Quit
->>
+>> 1
 [################################] 316/316 - 00:00:01
 ```
