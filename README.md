@@ -2,7 +2,7 @@
 
 leak-lookup is a small python program for discovering if an email address has any leaked passwords associated with it. If the email address does has leaked passwords associated with it, leak-lookup then searches for the databases that contain the aformentioned password, and prompts the user to download it.
 
-The developers of this program do not take any responsibilty for the misuse of this program. It is the end user's responsibility to obey all applicable local, state and federal laws.
+_The developers of this program do not take any responsibilty for the misuse of this program. It is the end user's responsibility to obey all applicable local, state and federal laws._
 
 ```
 $ leak-lookup -h
