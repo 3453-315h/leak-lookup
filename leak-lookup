@@ -1,0 +1,163 @@
+#!/usr/bin/env python3
+
+class Colours:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+try:
+    import os
+    import re
+    import sys
+    import getopt
+    import requests
+    from clint.textui import progress
+    from bs4 import BeautifulSoup
+except Exception as err:
+    print(Colours.FAIL + "Error: {}".format(err) + Colours.ENDC)
+
+def Usage():
+    use_msg = '''
+---------- Usage ---------- 
+leak-lookup [options] [search term]
+--------------------------- 
+Options:
+    -h: Prints this help message
+    -p: Searches haveibeenpwned.com 
+    -d: Searches for leaked database
+--------------------------- 
+'''
+    print(use_msg)
+
+def DownloadDatabase(url, name):
+    try:
+        r = requests.get(url, stream=True)
+        with open(name, 'wb') as f:
+            total_length = int(r.headers.get('content-length'))
+            for chunk in progress.bar(r.iter_content(chunk_size=1024), expected_size=(total_length/1024) + 1): 
+                if chunk:
+                    f.write(chunk)
+                    f.flush()
+    except (KeyboardInterrupt, SystemExit, EOFError):
+        print(Colours.FAIL + "An error occurred, cleaning up" + Colours.ENDC)
+        os.remove(name)
+
+def DatabaseQuery(database):
+    r = requests.get("https://www.databases.today/search-nojs.php?for=" + database)
+    if r.reason != "OK":
+        print(Colours.FAIL + "Error code: {}".format(r.status_code) + Colours.ENDC)
+        sys.exit(1)
+    soup = BeautifulSoup(r.text, "html.parser")
+    dbs = soup.find(id="myTable").find_all("tr")
+    entries = []
+    for table in dbs:
+        entry = table.find_all("td")
+        if len(entry) != 0:
+            entries.append([entry[0].text, entry[4].a.get("href")])
+    print("Which file would you like to download?")
+    for index, dllink in enumerate(entries):
+        print("{}) {}".format(index + 1, dllink[0]))
+    print("a) All")
+    print("q) Quit")
+    download_choice = input(">> ")
+    if download_choice == "q":
+        sys.exit(0)
+    elif download_choice == "a":
+        for x in dllink:
+            DownloadDatabase(x[1], x[0])
+    else:
+        try:
+            download_choice = int(download_choice) - 1
+            DownloadDatabase(dllink[1], dllink[0].split(" (")[0])
+        except:
+            print(Colours.FAIL + "Error: Invalid selection" + Colours.ENDC)
+            sys.exit(1)
+
+
+def QueryHaveIBeenPwned(email):
+    r = requests.post("https://haveibeenpwned.com/", data={"Account": email})
+    if r.reason != "OK":
+        print(Colours.FAIL + "Error code: {}".format(r.status_code) + Colours.ENDC)
+        sys.exit(1)
+    soup = BeautifulSoup(r.text, "html.parser")
+    pwnCount = re.match("Pwned on \d+", soup.find(id="pwnCount").text)
+    if pwnCount == None:
+        print(Colours.OKGREEN + "{} has no public leaks".format(email) + Colours.ENDC)
+        return
+    print(Colours.FAIL + "{} has {} public leaks avalible".format(email, pwnCount.group()[-1]) + Colours.ENDC)
+    leaks = []
+    for leak in soup.find_all(class_="pwnedWebsite"):
+        leak_name = None
+        leak_status = None
+        compromised_data = None
+        leak_name_html = leak.find(class_="pwnedCompanyTitle")
+        if leak_name_html:
+            if "(" in leak_name_html.text:
+                leak_name = leak_name_html.text.split("  (")[0]
+                leak_status = leak_name_html.text.split("  (")[1][:-2]
+            else:
+                leak_name = leak_name_html.text[:-1]
+                leak_status = None
+        compromised_data_html = leak.find(class_="dataClasses")
+        if compromised_data_html:
+            compromised_data = compromised_data_html.text
+        if leak_name:
+            leaks.append([leak_name, leak_status, compromised_data])
+    print("\nDownload databases:")
+    for index, leak in enumerate(leaks):
+        if leak[1] == None:
+            print("{}) {}: {}".format(index + 1, leak[0], leak[2]))
+        else:
+            print("{}) {} ({}): {}".format(index + 1, leak[0], leak[1], leak[2]))
+    print("a) Download all")
+    print("q) Quit")
+    download_choice = input(">> ")
+    if download_choice == "q":
+        sys.exit(0)
+    elif download_choice == "a":
+        for leak in leaks:
+            DatabaseQuery(leak[0])
+    try:
+        download_choice = int(download_choice) - 1
+        DatabaseQuery(leaks[download_choice][0])
+    except:
+        print(Colours.FAIL + "Error: Invalid selection" + Colours.ENDC)
+        sys.exit(1)
+
+
+def main():
+    if len(sys.argv[1:]) == 0:
+        Usage()
+        sys.exit(1)
+    try:
+        options, remainder = getopt.getopt(sys.argv[1:],'hpd',['h', 'p','d',])
+    except getopt.GetoptError as err:
+        print(Colours.FAIL + "Error: {}".format(err) + Colours.ENDC)
+        sys.exit(1)
+
+    for opt, arg in options:
+        if opt == "-h":
+            Usage()
+            sys.exit(0)
+        elif opt == "-p":
+            if len(remainder) == 0:
+                Usage()
+                sys.exit(1)
+            QueryHaveIBeenPwned(" ".join(remainder))
+        elif opt == "-d":
+            if len(remainder) == 0:
+                Usage()
+                sys.exit(1)
+            DatabaseQuery(" ".join(remainder))
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (KeyboardInterrupt, SystemExit, EOFError):
+        sys.exit(0)
