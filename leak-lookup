@@ -94,8 +94,17 @@ def DatabaseQuery(database):
             print(Colours.FAIL + "Error: Invalid selection" + Colours.ENDC)
             sys.exit(1)
 
+def CheckEmail(email):
+    check = re.match("(.*)@(.*)\.(.*)", email)
+    if check != None:
+        return True
+    else:
+        return False
 
 def QueryHaveIBeenPwned(email):
+    if not CheckEmail(email):
+        print(Colours.FAIL + "Error: Invalid email address" + Colours.ENDC)
+        sys.exit(1)
     r = requests.post("https://haveibeenpwned.com/", data={"Account": email})
     if r.reason != "OK":
         print(Colours.FAIL + "Error code: {}".format(r.status_code) + Colours.ENDC)
@@ -114,8 +123,8 @@ def QueryHaveIBeenPwned(email):
         leak_name_html = leak.find(class_="pwnedCompanyTitle")
         if leak_name_html:
             if "(" in leak_name_html.text:
-                leak_name = leak_name_html.text.split("  (")[0]
-                leak_status = leak_name_html.text.split("  (")[1][:-2]
+                leak_name = leak_name_html.text.split(" (")[0]
+                leak_status = leak_name_html.text.split(" (")[1][:-2]
             else:
                 leak_name = leak_name_html.text[:-1]
                 leak_status = None
