@@ -2,9 +2,9 @@
 
 '''
         DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE 
-                    Version 2, December 2004 
+                    Version 2, August 10
 
- Copyright (C) 2004 Sam Hocevar <sam@hocevar.net> 
+ Copyright (C) 2018 Tovi Jaeschke (jaeschke@tuta.io)
 
  Everyone is permitted to copy and distribute verbatim or modified 
  copies of this license document, and changing it is allowed as long 
@@ -37,6 +37,12 @@ try:
 except Exception as err:
     print(Colours.FAIL + "Error: {}".format(err) + Colours.ENDC)
 
+def PrintErrors(msg, ExitBool=True):
+    print(Colours.FAIL + msg + Colours.ENDC)
+    if ExitBool:
+        sys.exit(1)
+
+
 def Usage():
     use_msg = '''
 ---------- Usage ---------- 
@@ -60,14 +66,14 @@ def DownloadDatabase(url, name):
                     f.write(chunk)
                     f.flush()
     except (KeyboardInterrupt, SystemExit, EOFError):
-        print(Colours.FAIL + "An error occurred, cleaning up" + Colours.ENDC)
+        PrintErrors("An error occurred, cleaning up", ExitBool=False)
         os.remove(name)
+        sys.Exit(1)
 
 def DatabaseQuery(database):
     r = requests.get("https://www.databases.today/search-nojs.php?for=" + database)
     if r.reason != "OK":
-        print(Colours.FAIL + "Error code: {}".format(r.status_code) + Colours.ENDC)
-        sys.exit(1)
+        PrintErrors("Error code: {}".format(r.status_code))
     soup = BeautifulSoup(r.text, "html.parser")
     dbs = soup.find(id="myTable").find_all("tr")
     entries = []
@@ -91,8 +97,7 @@ def DatabaseQuery(database):
             download_choice = int(download_choice) - 1
             DownloadDatabase(dllink[1], dllink[0].split(" (")[0])
         except:
-            print(Colours.FAIL + "Error: Invalid selection" + Colours.ENDC)
-            sys.exit(1)
+            PrintErrors("Error: Invalid selection")
 
 def CheckEmail(email):
     check = re.match("(.*)@(.*)\.(.*)", email)
@@ -103,11 +108,10 @@ def CheckEmail(email):
 
 def QueryHaveIBeenPwned(email):
     if not CheckEmail(email):
-        print(Colours.FAIL + "Error: Invalid email address" + Colours.ENDC)
-        sys.exit(1)
+        PrintErrors("Error: Invalid email address")
     r = requests.post("https://haveibeenpwned.com/", data={"Account": email})
     if r.reason != "OK":
-        print(Colours.FAIL + "Error code: {}".format(r.status_code) + Colours.ENDC)
+        PrintErrors("Error code: {}".format(r.status_code))
         sys.exit(1)
     soup = BeautifulSoup(r.text, "html.parser")
     pwnCount = re.match("Pwned on \d+", soup.find(id="pwnCount").text)
@@ -151,9 +155,7 @@ def QueryHaveIBeenPwned(email):
         download_choice = int(download_choice) - 1
         DatabaseQuery(leaks[download_choice][0])
     except:
-        print(Colours.FAIL + "Error: Invalid selection" + Colours.ENDC)
-        sys.exit(1)
-
+        PrintErrors("Error: Invalid selection")
 
 def main():
     if len(sys.argv[1:]) == 0:
